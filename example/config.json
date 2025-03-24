@@ -1,0 +1,23 @@
+{
+  "placeholder": "//f",
+  "mime_query": "file --brief --mime-type //f",
+  "contexts": {
+    "default": true,
+    "alternative": false
+  },
+  "targets": [
+    {
+      "patterns": ["^text/plain"],
+      "associations": {
+        "default": "xdg-open //f",
+        "alternative": "sense //f"
+      }
+    },
+    {
+      "patterns": ["^image/"],
+      "associations": {
+        "default": "display //f"
+      }
+    }
+  ]
+}
