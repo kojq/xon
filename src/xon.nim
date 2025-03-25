@@ -1,4 +1,4 @@
-import os, osproc, strutils, json, regex, tables
+import os, osproc, strutils, json, re, tables
 
 type
   Target = object
@@ -23,11 +23,18 @@ proc loadConfig(filePath: string): JsonNode =
 # Create a new Xon instance from the JSON configuration.
 proc newXon(config: JsonNode): Xon =
   var x = Xon(
-    placeholder: config.getStr("placeholder", "//f"),
-    mimeQuery: config.getStr("mime_query", "file --brief --mime-type //f"),
+    placeholder: if config.hasKey("placeholder"):
+                   config["placeholder"].getStr
+                 else:
+                   "//f",
+    mimeQuery: if config.hasKey("mime_query"):
+                 config["mime_query"].getStr
+               else:
+                 "file --brief --mime-type //f",
     contexts: initTable[string, bool](),
     targets: @[]
   )
+
   if config.hasKey("contexts"):
     for key, value in config["contexts"].fields:
       x.contexts[key] = value.getBool
@@ -55,16 +62,18 @@ proc launch(x: Xon; fileOrURI: string) =
   # If the file exists, determine its MIME type.
   if fileExists(filePath):
     let mimeCmd = substitute(x.mimeQuery, x.placeholder, filePath)
-    mimeOrURI = execCmd(mimeCmd).strip()
+    # Use execProcess which returns the command output as a string.
+    mimeOrURI = execProcess(mimeCmd).strip()
   else:
     mimeOrURI = fileOrURI
 
   for target in x.targets:
     for pat in target.patterns:
-      # (?i) makes the regex search case-insensitive.
-      if mimeOrURI.match(re"(?i)" & pat):
+      # Build the regex from a string for case-insensitive match.
+      if mimeOrURI.match(re("(?i)" & pat)):
         for context, cmd in target.associations.pairs:
-          if x.contexts.get(context, false):
+          # Check if the key exists.
+          if (context in x.contexts) and x.contexts[context]:
             let finalCmd = substitute(cmd, x.placeholder, filePath)
             discard execCmd(finalCmd)
             return
